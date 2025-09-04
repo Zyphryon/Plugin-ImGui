@@ -69,10 +69,10 @@ namespace Plugin
                 {
                     // Apply scissor/clipping rectangle
                     const Graphic::Scissor Scissor(
-                            Command.ClipRect.x - Commands.DisplayPos.x,
-                            Command.ClipRect.y - Commands.DisplayPos.y,
-                            Command.ClipRect.x - Command.ClipRect.z - Commands.DisplayPos.x,
-                            Command.ClipRect.y - Command.ClipRect.w - Commands.DisplayPos.y);
+                        Command.ClipRect.x - Commands.DisplayPos.x,
+                        Command.ClipRect.y - Commands.DisplayPos.y,
+                        Command.ClipRect.z - Commands.DisplayPos.x - Command.ClipRect.x,
+                        Command.ClipRect.w - Commands.DisplayPos.y - Command.ClipRect.y);
                     if (Scissor.Width == 0 || Scissor.Height == 0)
                     {
                         continue;
