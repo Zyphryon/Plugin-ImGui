@@ -12,6 +12,7 @@
 
 #include "ImGuiRenderer.hpp"
 #include <Zyphryon.Math/Matrix4x4.hpp>
+#include <Zyphryon.Content/Service.hpp>
 
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 // [   CODE   ]
@@ -131,22 +132,7 @@ namespace Plugin
 
     void ImGuiRenderer::BakeDefaultFonts()
     {
-        constexpr Real32  kAwesomeFontSize    = 13.0f;
-        constexpr ImWchar kAwesomeFontRange[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
-
-        ImFontConfig Config;
-        Config.MergeMode        = true;
-        Config.PixelSnapH       = true;
-        Config.GlyphMinAdvanceX = kAwesomeFontSize;
-
         ImGui::GetIO().Fonts->AddFontDefault();
-        ImGui::GetIO().Fonts->AddFontFromMemoryTTF(
-                FontAwesome400EmbeddedFile,
-                sizeof(FontAwesome400EmbeddedFile), kAwesomeFontSize, &Config, kAwesomeFontRange);
-        ImGui::GetIO().Fonts->AddFontFromMemoryTTF(
-                FontAwesome900EmbeddedFile,
-                sizeof(FontAwesome900EmbeddedFile), kAwesomeFontSize, &Config, kAwesomeFontRange);
         ImGui::GetIO().Fonts->Build();
     }
-
 }

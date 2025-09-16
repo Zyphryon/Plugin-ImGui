@@ -13,8 +13,6 @@
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 #include <imgui.h>
-#include "ImGuiFont.hpp"
-#include <Zyphryon.Content/Service.hpp>
 #include <Zyphryon.Graphic/Service.hpp>
 #include <Zyphryon.Graphic/Encoder.hpp>
 
