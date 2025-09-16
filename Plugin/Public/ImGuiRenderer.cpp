@@ -28,8 +28,27 @@ namespace Plugin
         mPipeline = Content->Load<Graphic::Pipeline>("Engine://Pipeline/UI.effect");
         mGraphics = Host.GetService<Graphic::Service>();
 
-        CreateFonts();
+        BakeDefaultFonts();
         CreateTextureFontAtlas(Host);
+    }
+
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+    void ImGuiRenderer::CreateTextureFontAtlas(Ref<Service::Host> Host)
+    {
+        Ptr<UInt8> Pixels;
+        SInt32     Width;
+        SInt32     Height;
+        ImGui::GetIO().Fonts->GetTexDataAsRGBA32(&Pixels, &Width, &Height);
+
+        Tracker<Graphic::Texture> Texture = Tracker<Graphic::Texture>::Create("ImGUI_FontAtlas");
+        Blob Data(Pixels, Width * Height * 4, Blob::kEmptyDeleter);
+
+        Texture->Load(Graphic::TextureFormat::RGBA8UIntNorm, Width, Height, 1, Move(Data));
+        Texture->Create(Host);
+
+        ImGui::GetIO().Fonts->SetTexID(Texture->GetID());
     }
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -37,6 +56,12 @@ namespace Plugin
 
     void ImGuiRenderer::Submit(ConstRef<ImDrawData> Commands)
     {
+        // Abort drawing if the pipeline has not finished loading or compiling.
+        if (!mPipeline->HasCompleted())
+        {
+            return;
+        }
+
         auto [VtxPtr, VtxStream] = mGraphics->Allocate<ImDrawVert>(Graphic::Usage::Vertex, Commands.TotalVtxCount);
         auto [IdxPtr, IdxStream] = mGraphics->Allocate<ImDrawIdx>(Graphic::Usage::Index, Commands.TotalIdxCount);
 
@@ -104,7 +129,7 @@ namespace Plugin
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-    void ImGuiRenderer::CreateFonts()
+    void ImGuiRenderer::BakeDefaultFonts()
     {
         constexpr Real32  kAwesomeFontSize    = 13.0f;
         constexpr ImWchar kAwesomeFontRange[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
@@ -124,22 +149,4 @@ namespace Plugin
         ImGui::GetIO().Fonts->Build();
     }
 
-    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
-    void ImGuiRenderer::CreateTextureFontAtlas(Ref<Service::Host> Host)
-    {
-        Ptr<UInt8> Pixels;
-        SInt32     Width;
-        SInt32     Height;
-        ImGui::GetIO().Fonts->GetTexDataAsRGBA32(&Pixels, &Width, &Height);
-
-        Tracker<Graphic::Texture> Texture = Tracker<Graphic::Texture>::Create("ImGUI_FontAtlas");
-        Blob Data(Pixels, Width * Height * 4, Blob::kEmptyDeleter);
-
-        Texture->Load(Graphic::TextureFormat::RGBA8UIntNorm, Width, Height, 1, Move(Data));
-        Texture->Create(Host);
-
-        ImGui::GetIO().Fonts->SetTexID(Texture->GetID());
-    }
 }

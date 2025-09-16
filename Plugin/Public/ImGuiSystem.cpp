@@ -69,4 +69,12 @@ namespace Plugin
             mRenderer.Submit(* Commands);
         }
     }
+
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+    void ImGuiSystem::CreateTextureFontAtlas(Ref<Service::Host> Host)
+    {
+        mRenderer.CreateTextureFontAtlas(Host);
+    }
 }

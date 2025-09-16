@@ -39,15 +39,15 @@ namespace Plugin
         /// \param Commands The set of ImGui draw lists to render.
         void Submit(ConstRef<ImDrawData> Commands);
 
-    private:
-
-        /// \brief Creates and uploads font textures required by ImGui.
-        void CreateFonts();
-
         /// \brief Builds the font atlas texture and registers it with the graphics backend.
         ///
         /// \param Host Service host used to allocate and register GPU resources.
         void CreateTextureFontAtlas(Ref<Service::Host> Host);
+
+    private:
+
+        /// \brief Creates and uploads font textures required by ImGui.
+        void BakeDefaultFonts();
 
     private:
 
