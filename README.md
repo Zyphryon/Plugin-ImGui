@@ -31,9 +31,6 @@ ImGui::End();
 
 // Render UI
 mImGui.End();
-
-// In your Input Listener
-return mImGui.Forward(Event) || OnEvent(Event);
 ```
 
 ## 📄 License
