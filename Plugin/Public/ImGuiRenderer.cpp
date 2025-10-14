@@ -95,10 +95,10 @@ namespace Plugin
                 {
                     // Apply scissor/clipping rectangle
                     const Graphic::Scissor Scissor(
-                        Command.ClipRect.x - Commands.DisplayPos.x,
-                        Command.ClipRect.y - Commands.DisplayPos.y,
-                        Command.ClipRect.z - Commands.DisplayPos.x - Command.ClipRect.x,
-                        Command.ClipRect.w - Commands.DisplayPos.y - Command.ClipRect.y);
+                        static_cast<UInt16>(Command.ClipRect.x - Commands.DisplayPos.x),
+                        static_cast<UInt16>(Command.ClipRect.y - Commands.DisplayPos.y),
+                        static_cast<UInt16>(Command.ClipRect.z - Commands.DisplayPos.x - Command.ClipRect.x),
+                        static_cast<UInt16>(Command.ClipRect.w - Commands.DisplayPos.y - Command.ClipRect.y));
                     if (Scissor.Width == 0 || Scissor.Height == 0)
                     {
                         continue;
@@ -113,7 +113,7 @@ namespace Plugin
                     mEncoder.SetSampler(0, Graphic::Sampler(
                         Graphic::TextureEdge::Clamp,
                         Graphic::TextureEdge::Clamp,
-                        Graphic::TextureFilter::MinMagMipLinear));
+                        Graphic::TextureFilter::LinearMipLinear));
                     mEncoder.Draw(Command.ElemCount, Command.VtxOffset + VtxOffset, Command.IdxOffset + IdxOffset);
                 }
             }
