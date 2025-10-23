@@ -297,17 +297,21 @@ namespace Plugin
         IO.BackendFlags           |= ImGuiBackendFlags_RendererHasVtxOffset | ImGuiBackendFlags_RendererHasTextures;
         IO.DisplaySize             = ImVec2(Device.GetWidth(), Device.GetHeight());
         IO.DisplayFramebufferScale = ImVec2(Device.GetScale(), Device.GetScale());
+        IO.BackendPlatformUserData = &Device;
 
         // Register custom clipboard handlers to integrate with the engine's device clipboard API.
-        IO.SetClipboardTextFn = [](const Ptr<void> Instance, ConstPtr<Char> Text) {
-            static_cast<Ptr<Engine::Device>>(Instance)->SetClipboard(Text);
+        Ref<ImGuiPlatformIO> PlatformIO = ImGui::GetPlatformIO();
+        PlatformIO.Platform_SetClipboardTextFn = [](Ptr<ImGuiContext>, ConstPtr<Char> Text) {
+            static_cast<Ptr<Engine::Device>>(ImGui::GetIO().BackendPlatformUserData)->SetClipboard(Text);
         };
-        IO.GetClipboardTextFn = [](const Ptr<void> Instance) -> ConstPtr<Char> {
+        PlatformIO.Platform_GetClipboardTextFn = [](Ptr<ImGuiContext>) -> ConstPtr<Char> {
             static Str8 Clipboard;
-            Clipboard = static_cast<Ptr<Engine::Device>>(Instance)->GetClipboard();
+            Clipboard = static_cast<Ptr<Engine::Device>>(ImGui::GetIO().BackendPlatformUserData)->GetClipboard();
             return Clipboard.data();
         };
-        IO.ClipboardUserData = &Device;
+        PlatformIO.Platform_OpenInShellFn      = [](Ptr<ImGuiContext>, ConstPtr<Char> Url) -> Bool {
+            return SDL_OpenURL(Url);
+        };
 
         // Apply the default dark theme styling.
         ImGui::StyleColorsDark();
