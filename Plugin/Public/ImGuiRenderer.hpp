@@ -42,8 +42,19 @@ namespace Plugin
 
     private:
 
+        /// \brief Creates a GPU texture for use by ImGui.
+        ///
+        /// \param Texture The ImGui texture data to create.
         void CreateTexture(Ptr<ImTextureData> Texture);
+
+        /// \brief Deletes a GPU texture used by ImGui.
+        ///
+        /// \param Texture The ImGui texture data to delete.
         void DeleteTexture(Ptr<ImTextureData> Texture);
+
+        /// \brief Updates an existing GPU texture used by ImGui.
+        ///
+        /// \param Texture The ImGui texture data to update.
         void UpdateTexture(Ptr<ImTextureData> Texture);
 
     private:
