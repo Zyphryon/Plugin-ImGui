@@ -29,27 +29,24 @@ namespace Plugin
         mPipeline = Content->Load<Graphic::Pipeline>("Engine://Pipeline/UI.effect");
         mGraphics = Host.GetService<Graphic::Service>();
 
-        BakeDefaultFonts();
-        CreateTextureFontAtlas(Host);
+        // Set maximum texture size limits for the renderer backend.
+        Ref<ImGuiPlatformIO> PlatformIO = ImGui::GetPlatformIO();
+        PlatformIO.Renderer_TextureMaxWidth  = mGraphics->GetCapabilities().MaxTextureDimension;
+        PlatformIO.Renderer_TextureMaxHeight = PlatformIO.Renderer_TextureMaxWidth;
     }
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-    void ImGuiRenderer::CreateTextureFontAtlas(Ref<Service::Host> Host)
+    void ImGuiRenderer::Dispose()
     {
-        Ptr<UInt8> Pixels;
-        SInt32     Width;
-        SInt32     Height;
-        ImGui::GetIO().Fonts->GetTexDataAsRGBA32(&Pixels, &Width, &Height);
-
-        Tracker<Graphic::Texture> Texture = Tracker<Graphic::Texture>::Create("ImGUI_FontAtlas");
-        Blob Data(Pixels, Width * Height * 4, Blob::kEmptyDeleter);
-
-        Texture->Load(Graphic::TextureFormat::RGBA8UIntNorm, Width, Height, 1, Move(Data));
-        Texture->Create(Host);
-
-        ImGui::GetIO().Fonts->SetTexID(Texture->GetID());
+        for (const Ptr<ImTextureData> Texture : ImGui::GetPlatformIO().Textures)
+        {
+            if (Texture->RefCount == 1)
+            {
+                DeleteTexture(Texture);
+            }
+        }
     }
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -61,6 +58,28 @@ namespace Plugin
         if (!mPipeline->HasCompleted())
         {
             return;
+        }
+
+        // Handle all pending texture operations.
+        if (Commands.Textures != nullptr)
+        {
+            for (const Ptr<ImTextureData> Texture : * Commands.Textures)
+            {
+                switch (Texture->Status)
+                {
+                case ImTextureStatus_WantCreate:
+                    CreateTexture(Texture);
+                    break;
+                case ImTextureStatus_WantUpdates:
+                    UpdateTexture(Texture);
+                    break;
+                case ImTextureStatus_WantDestroy:
+                    DeleteTexture(Texture);
+                    break;
+                default:
+                    break;
+                }
+            }
         }
 
         auto [VtxPtr, VtxStream] = mGraphics->Allocate<ImDrawVert>(Graphic::Usage::Vertex, Commands.TotalVtxCount);
@@ -130,9 +149,53 @@ namespace Plugin
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-    void ImGuiRenderer::BakeDefaultFonts()
+    void ImGuiRenderer::CreateTexture(Ptr<ImTextureData> Texture)
     {
-        ImGui::GetIO().Fonts->AddFontDefault();
-        ImGui::GetIO().Fonts->Build();
+        const Graphic::Object ID = mGraphics->CreateTexture(
+            Graphic::Access::Device,
+            Graphic::TextureFormat::RGBA8UIntNorm,
+            Graphic::TextureLayout::Source,
+            Texture->Width,
+            Texture->Height,
+            1,
+            Graphic::Samples::X1,
+            Blob(Texture->GetPixels(), Texture->Width * Texture->Height * 4, Blob::kEmptyDeleter));
+        Texture->SetTexID(ID);
+        Texture->SetStatus(ImTextureStatus_OK);
+    }
+
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+    void ImGuiRenderer::DeleteTexture(Ptr<ImTextureData> Texture)
+    {
+        if (const Graphic::Object Handle = Texture->GetTexID(); Handle)
+        {
+            mGraphics->DeleteTexture(Handle);
+
+            // Invalidate texture ID.
+            Texture->SetTexID(ImTextureID_Invalid);
+        }
+        Texture->SetStatus(ImTextureStatus_Destroyed);
+    }
+
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+    void ImGuiRenderer::UpdateTexture(Ptr<ImTextureData> Texture)
+    {
+        for (const auto [X, Y, W, H] : Texture->Updates)
+        {
+            mGraphics->UpdateTexture(
+                Texture->GetTexID(),
+                1,
+                X,
+                Y,
+                W,
+                H,
+                Texture->GetPitch(),
+                Blob(Texture->GetPixelsAt(X, Y), Texture->Width * Texture->Height * 4, Blob::kEmptyDeleter));
+        }
+        Texture->SetStatus(ImTextureStatus_OK);
     }
 }

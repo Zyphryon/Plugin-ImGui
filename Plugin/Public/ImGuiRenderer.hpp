@@ -32,20 +32,19 @@ namespace Plugin
         /// \param Host Service host providing access to graphics and content subsystems.
         void Initialize(Ref<Service::Host> Host);
 
+        /// \brief Releases all resources used by the ImGui renderer.
+        void Dispose();
+
         /// \brief Submits ImGui draw data for rendering.
         ///
         /// \param Commands The set of ImGui draw lists to render.
         void Submit(ConstRef<ImDrawData> Commands);
 
-        /// \brief Builds the font atlas texture and registers it with the graphics backend.
-        ///
-        /// \param Host Service host used to allocate and register GPU resources.
-        void CreateTextureFontAtlas(Ref<Service::Host> Host);
-
     private:
 
-        /// \brief Creates and uploads font textures required by ImGui.
-        void BakeDefaultFonts();
+        void CreateTexture(Ptr<ImTextureData> Texture);
+        void DeleteTexture(Ptr<ImTextureData> Texture);
+        void UpdateTexture(Ptr<ImTextureData> Texture);
 
     private:
 

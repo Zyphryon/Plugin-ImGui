@@ -291,21 +291,23 @@ namespace Plugin
     {
         // Create the ImGui context and configure basic IO flags (keyboard navigation, docking, renderer features).
         ImGui::CreateContext();
-        ImGui::GetIO().ConfigFlags            |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable;
-        ImGui::GetIO().BackendFlags           |= ImGuiBackendFlags_RendererHasVtxOffset;
-        ImGui::GetIO().DisplaySize             = ImVec2(Device.GetWidth(), Device.GetHeight());
-        ImGui::GetIO().DisplayFramebufferScale = ImVec2(Device.GetScale(), Device.GetScale());
+
+        Ref<ImGuiIO> IO = ImGui::GetIO();
+        IO.ConfigFlags            |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable;
+        IO.BackendFlags           |= ImGuiBackendFlags_RendererHasVtxOffset | ImGuiBackendFlags_RendererHasTextures;
+        IO.DisplaySize             = ImVec2(Device.GetWidth(), Device.GetHeight());
+        IO.DisplayFramebufferScale = ImVec2(Device.GetScale(), Device.GetScale());
 
         // Register custom clipboard handlers to integrate with the engine's device clipboard API.
-        ImGui::GetIO().SetClipboardTextFn = [](const Ptr<void> Instance, ConstPtr<Char> Text) {
+        IO.SetClipboardTextFn = [](const Ptr<void> Instance, ConstPtr<Char> Text) {
             static_cast<Ptr<Engine::Device>>(Instance)->SetClipboard(Text);
         };
-        ImGui::GetIO().GetClipboardTextFn = [](const Ptr<void> Instance) -> ConstPtr<Char> {
+        IO.GetClipboardTextFn = [](const Ptr<void> Instance) -> ConstPtr<Char> {
             static Str8 Clipboard;
             Clipboard = static_cast<Ptr<Engine::Device>>(Instance)->GetClipboard();
             return Clipboard.data();
         };
-        ImGui::GetIO().ClipboardUserData = &Device;
+        IO.ClipboardUserData = &Device;
 
         // Apply the default dark theme styling.
         ImGui::StyleColorsDark();
@@ -332,6 +334,9 @@ namespace Plugin
 
     void ImGuiSystem::Teardown(Ref<Service::Host> Host)
     {
+        // Dispose of the renderer backend.
+        mRenderer.Dispose();
+
         // Releases all input event callbacks.
         ConstTracker<Input::Service> Input = Host.GetService<Input::Service>();
 
@@ -352,7 +357,7 @@ namespace Plugin
     void ImGuiSystem::Begin(ConstRef<Time> Time)
     {
         ImGui::NewFrame();
-        ImGui::GetIO().DeltaTime = Time.GetDelta();
+        ImGui::GetIO().DeltaTime = static_cast<Real32>(Time.GetDelta());
     }
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -366,14 +371,6 @@ namespace Plugin
         {
             mRenderer.Submit(* Commands);
         }
-    }
-
-    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
-    void ImGuiSystem::CreateTextureFontAtlas(Ref<Service::Host> Host)
-    {
-        mRenderer.CreateTextureFontAtlas(Host);
     }
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-

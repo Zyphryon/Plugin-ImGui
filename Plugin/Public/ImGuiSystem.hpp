@@ -46,11 +46,6 @@ namespace Plugin
         /// \brief Ends the current ImGui frame.
         void End();
 
-        /// \brief Builds the font atlas texture and registers it with the graphics backend.
-        ///
-        /// \param Host Service host used to allocate and register GPU resources.
-        void CreateTextureFontAtlas(Ref<Service::Host> Host);
-
     private:
 
         /// \brief Handles text input events.
