@@ -152,7 +152,7 @@ namespace Plugin
     void ImGuiRenderer::CreateTexture(Ptr<ImTextureData> Texture)
     {
         const Graphic::Object ID = mGraphics->CreateTexture(
-            Graphic::Access::Device,
+            Graphic::Access::Dual,
             Graphic::TextureFormat::RGBA8UIntNorm,
             Graphic::TextureLayout::Source,
             Texture->Width,
@@ -188,7 +188,7 @@ namespace Plugin
         {
             mGraphics->UpdateTexture(
                 Texture->GetTexID(),
-                1,
+                0,
                 X,
                 Y,
                 W,
