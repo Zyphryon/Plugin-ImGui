@@ -158,7 +158,7 @@ namespace Plugin
             Texture->Width,
             Texture->Height,
             1,
-            Graphic::Samples::X1,
+            Graphic::Multisample::X1,
             Blob(Texture->GetPixels(), Texture->Width * Texture->Height * 4, Blob::kEmptyDeleter));
         Texture->SetTexID(ID);
         Texture->SetStatus(ImTextureStatus_OK);
