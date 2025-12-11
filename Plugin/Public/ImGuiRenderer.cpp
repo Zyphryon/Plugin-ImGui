@@ -31,7 +31,7 @@ namespace Plugin
 
         // Set maximum texture size limits for the renderer backend.
         Ref<ImGuiPlatformIO> PlatformIO = ImGui::GetPlatformIO();
-        PlatformIO.Renderer_TextureMaxWidth  = mGraphics->GetCapabilities().MaxTextureDimension;
+        PlatformIO.Renderer_TextureMaxWidth  = mGraphics->GetDevice().Capabilities.MaxTextureSize;
         PlatformIO.Renderer_TextureMaxHeight = PlatformIO.Renderer_TextureMaxWidth;
     }
 
