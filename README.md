@@ -13,6 +13,8 @@ This plugin integrates [Dear ImGui](https://github.com/ocornut/imgui) with [Zyph
 
 ## Usage
 
+Copy Resource folder to your Resource folder and add a Mount with name "Plugin" pointing to that.
+
 ```cpp
 #include <Plugin/ImGuiSystem.hpp>
 

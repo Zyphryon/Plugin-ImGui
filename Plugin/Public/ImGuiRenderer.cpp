@@ -1,5 +1,5 @@
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-// Copyright (C) 2021-2025 by Agustin L. Alvarez. All rights reserved.
+// Copyright (C) 2021-2026 by Agustin L. Alvarez. All rights reserved.
 //
 // This work is licensed under the terms of the MIT license.
 //
@@ -26,12 +26,12 @@ namespace Plugin
     void ImGuiRenderer::Initialize(Ref<Service::Host> Host)
     {
         ConstTracker<Content::Service> Content = Host.GetService<Content::Service>();
-        mPipeline = Content->Load<Graphic::Pipeline>("Engine://Pipeline/UI.effect");
+        mPipeline = Content->Load<Graphic::Pipeline>("Plugin://Pipeline/ImGUI.effect");
         mGraphics = Host.GetService<Graphic::Service>();
 
         // Set maximum texture size limits for the renderer backend.
         Ref<ImGuiPlatformIO> PlatformIO = ImGui::GetPlatformIO();
-        PlatformIO.Renderer_TextureMaxWidth  = mGraphics->GetDevice().Capabilities.MaxTextureSize;
+        PlatformIO.Renderer_TextureMaxWidth  = mGraphics->GetDevice().Capabilities.MaxTextureDimension;
         PlatformIO.Renderer_TextureMaxHeight = PlatformIO.Renderer_TextureMaxWidth;
     }
 
@@ -82,8 +82,8 @@ namespace Plugin
             }
         }
 
-        auto [VtxPtr, VtxStream] = mGraphics->Allocate<ImDrawVert>(Graphic::Usage::Vertex, Commands.TotalVtxCount);
-        auto [IdxPtr, IdxStream] = mGraphics->Allocate<ImDrawIdx>(Graphic::Usage::Index, Commands.TotalIdxCount);
+        auto [VtxPtr, VtxStream] = mGraphics->AllocateTransientBuffer<ImDrawVert>(Graphic::Usage::Vertex, Commands.TotalVtxCount);
+        auto [IdxPtr, IdxStream] = mGraphics->AllocateTransientBuffer<ImDrawIdx>(Graphic::Usage::Index, Commands.TotalIdxCount);
 
         const Matrix4x4 Projection = Matrix4x4::CreateOrthographic(
                 Commands.DisplayPos.x,
@@ -92,12 +92,12 @@ namespace Plugin
                 Commands.DisplayPos.y,
                 -1.0f,
                 +1.0f);
-        const auto Uniforms = mGraphics->Allocate(Graphic::Usage::Uniform, ConstSpan(&Projection, 1));
+        const auto Uniforms = mGraphics->AllocateTransientBuffer(Graphic::Usage::Uniform, ConstSpan(&Projection, 1));
 
         UInt32 VtxOffset = 0;
         UInt32 IdxOffset = 0;
 
-        for (ConstPtr<ImDrawList> CommandList : Commands.CmdLists)
+        for (const ConstPtr<ImDrawList> CommandList : Commands.CmdLists)
         {
             std::memcpy(VtxPtr, CommandList->VtxBuffer.Data, CommandList->VtxBuffer.Size * sizeof(ImDrawVert));
             std::memcpy(IdxPtr, CommandList->IdxBuffer.Data, CommandList->IdxBuffer.Size * sizeof(ImDrawIdx));
@@ -128,11 +128,7 @@ namespace Plugin
                     mEncoder.SetIndices(IdxStream);
                     mEncoder.SetUniform(0, Uniforms);
                     mEncoder.SetPipeline(mPipeline->GetID());
-                    mEncoder.SetTexture(0, Command.GetTexID());
-                    mEncoder.SetSampler(0, Graphic::Sampler(
-                        Graphic::TextureEdge::Clamp,
-                        Graphic::TextureEdge::Clamp,
-                        Graphic::TextureFilter::LinearMipLinear));
+                    mEncoder.SetTexture(0, Command.GetTexID(), Graphic::Sampler());
                     mEncoder.Draw(Command.ElemCount, Command.VtxOffset + VtxOffset, Command.IdxOffset + IdxOffset);
                 }
             }
@@ -152,14 +148,15 @@ namespace Plugin
     void ImGuiRenderer::CreateTexture(Ptr<ImTextureData> Texture)
     {
         const Graphic::Object ID = mGraphics->CreateTexture(
-            Graphic::Access::Dual,
+            Graphic::Access::Stream,
+            Graphic::TextureType::Texture2D,
             Graphic::TextureFormat::RGBA8UIntNorm,
             Graphic::TextureLayout::Source,
             Texture->Width,
             Texture->Height,
             1,
             Graphic::Multisample::X1,
-            Blob(Texture->GetPixels(), Texture->Width * Texture->Height * 4, Blob::kEmptyDeleter));
+            Blob::Wrap(Texture->GetPixels(), Texture->Width * Texture->Height * 4));
         Texture->SetTexID(ID);
         Texture->SetStatus(ImTextureStatus_OK);
     }
@@ -194,7 +191,7 @@ namespace Plugin
                 W,
                 H,
                 Texture->GetPitch(),
-                Blob(Texture->GetPixelsAt(X, Y), Texture->Width * Texture->Height * 4, Blob::kEmptyDeleter));
+                Blob::Wrap(Texture->GetPixelsAt(X, Y), Texture->Width * Texture->Height * 4));
         }
         Texture->SetStatus(ImTextureStatus_OK);
     }
