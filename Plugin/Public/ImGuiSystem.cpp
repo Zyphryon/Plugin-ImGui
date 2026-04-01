@@ -477,7 +477,7 @@ namespace Plugin
 
     Bool ImGuiSystem::OnWindowResize(UInt32 Width, UInt32 Height)
     {
-        ImGui::GetIO().DisplaySize = ImVec2(Width, Height);
+        ImGui::GetIO().DisplaySize = ImVec2(static_cast<Real32>(Width), static_cast<Real32>(Height));
         return false;
     }
 }

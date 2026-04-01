@@ -26,7 +26,7 @@ namespace Plugin
     void ImGuiRenderer::Initialize(Ref<Service::Host> Host)
     {
         ConstTracker<Content::Service> Content = Host.GetService<Content::Service>();
-        mPipeline = Content->Load<Graphic::Pipeline>("Plugin://Pipeline/ImGUI.effect");
+        mPipeline = Content->Load<Graphic::Pipeline>("Engine://Pipeline/Basic/Basic2D.effect");
         mGraphics = Host.GetService<Graphic::Service>();
 
         // Set maximum texture size limits for the renderer backend.
