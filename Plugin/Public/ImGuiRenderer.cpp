@@ -131,6 +131,7 @@ namespace Plugin
                     mEncoder.SetTexture(0, Command.GetTexID(), Graphic::Sampler());
                     mEncoder.Draw(Command.ElemCount, Command.VtxOffset + VtxOffset, Command.IdxOffset + IdxOffset);
                 }
+                mEncoder.ResetBindings();
             }
 
             VtxOffset += CommandList->VtxBuffer.Size;
