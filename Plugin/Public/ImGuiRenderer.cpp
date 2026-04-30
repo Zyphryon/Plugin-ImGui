@@ -149,10 +149,10 @@ namespace Plugin
     void ImGuiRenderer::CreateTexture(Ptr<ImTextureData> Texture)
     {
         const Graphic::Object ID = mGraphics->CreateTexture(
-            Graphic::Access::Stream,
             Graphic::TextureType::Texture2D,
             Graphic::TextureFormat::RGBA8UIntNorm,
-            Graphic::TextureLayout::Source,
+            Graphic::Access::Stream,
+            Graphic::Usage::Sample,
             Texture->Width,
             Texture->Height,
             1,
@@ -192,6 +192,7 @@ namespace Plugin
                 W,
                 H,
                 Texture->GetPitch(),
+                false,
                 Blob::Wrap(Texture->GetPixelsAt(X, Y), Texture->Width * Texture->Height * 4));
         }
         Texture->SetStatus(ImTextureStatus_OK);
