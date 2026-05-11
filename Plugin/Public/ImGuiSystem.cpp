@@ -150,7 +150,7 @@ namespace Plugin
             return ImGuiKey_CapsLock;
         case Input::Key::Scroll:
             return ImGuiKey_ScrollLock;
-        case Input::Key::Lock:
+        case Input::Key::NumLock:
             return ImGuiKey_NumLock;
         case Input::Key::Print:
             return ImGuiKey_PrintScreen;
