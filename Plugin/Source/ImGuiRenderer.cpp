@@ -82,10 +82,10 @@ namespace Plugin
             }
         }
 
-        Graphic::Slice<ImDrawVert> VtxSlice = mGraphics->AllocateVertices<ImDrawVert>(Commands.TotalVtxCount);
-        Graphic::Slice<ImDrawIdx>  IdxSlice = mGraphics->AllocateIndices<ImDrawIdx>(Commands.TotalIdxCount);
+        Graphic::Slice<ImDrawVert> VtxSlice = mGraphics->AllocateTransientVertices<ImDrawVert>(Commands.TotalVtxCount);
+        Graphic::Slice<ImDrawIdx>  IdxSlice = mGraphics->AllocateTransientIndices<ImDrawIdx>(Commands.TotalIdxCount);
 
-        Graphic::Slice<Matrix4x4> UboSlice = mGraphics->AllocateUniforms<Matrix4x4>(1);
+        Graphic::Slice<Matrix4x4> UboSlice = mGraphics->AllocateTransientUniforms<Matrix4x4>(1);
         UboSlice[0] = Matrix4x4::CreateOrthographic(
                 Commands.DisplayPos.x,
                 Commands.DisplayPos.x + Commands.DisplaySize.x,
@@ -102,11 +102,15 @@ namespace Plugin
             VtxSlice.Copy(ConstSpan(CommandList->VtxBuffer.Data, CommandList->VtxBuffer.Size), VtxOffset);
             IdxSlice.Copy(ConstSpan(CommandList->IdxBuffer.Data, CommandList->IdxBuffer.Size), IdxOffset);
 
-            for (ConstRef<ImDrawCmd> Command : CommandList->CmdBuffer)
+            Span<Graphic::Command> GfxCommands = mGraphics->AllocateTransientCommands(CommandList->CmdBuffer.Size);
+
+            for (SInt32 Element = 0; Element < CommandList->CmdBuffer.Size; ++Element)
             {
+                ConstRef<ImDrawCmd> Command = CommandList->CmdBuffer[Element];
+
                 if (Command.UserCallback)
                 {
-                    Command.UserCallback(CommandList, &Command);
+                    Command.UserCallback(CommandList, AddressOf(Command));
                 }
                 else
                 {
@@ -121,7 +125,7 @@ namespace Plugin
                         continue;
                     }
 
-                    Ref<Graphic::Command> GfxCommand = mGraphics->AllocateCommand();
+                    Ref<Graphic::Command> GfxCommand = GfxCommands[Element];
 
                     GfxCommand.Scissor = Scissor;
                     GfxCommand.Vertices.Append(VtxSlice.GetDescriptor());
@@ -129,7 +133,7 @@ namespace Plugin
                     GfxCommand.Uniforms[Enum::Cast(Graphic::UniformScope::Global)] = UboSlice.GetDescriptor();
                     GfxCommand.Pipeline = mTechnique->GetHandle();
                     GfxCommand.Textures.Append(Command.GetTexID());
-                    GfxCommand.Samplers.Append(Graphic::Sampler());
+                    GfxCommand.Samplers.Append(Graphic::Sampler()); // TODO: Move to Technique's Static Sampler
                     GfxCommand.Parameters = {
                         .Count     = Command.ElemCount,
                         .Base      = static_cast<SInt32>(Command.VtxOffset + VtxOffset),

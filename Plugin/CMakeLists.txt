@@ -27,7 +27,8 @@ LIST(APPEND       PROJECT_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/Source")
 
 FetchContent_Declare(External_ZyEngine
         GIT_REPOSITORY https://github.com/Zyphryon/Engine
-        GIT_TAG main)
+        GIT_TAG        main
+        GIT_SHALLOW    TRUE)
 FetchContent_MakeAvailable(External_ZyEngine)
 
 LIST(APPEND PROJECT_DEPENDENCIES "ZyEngine")
@@ -38,7 +39,8 @@ LIST(APPEND PROJECT_DEPENDENCIES "ZyEngine")
 
 FetchContent_Declare(External_ImGUI
         GIT_REPOSITORY https://github.com/ocornut/imgui
-        GIT_TAG docking)
+        GIT_TAG        docking
+        GIT_SHALLOW    TRUE)
 FetchContent_MakeAvailable(External_ImGUI)
 
 ADD_LIBRARY(ImGUI STATIC
