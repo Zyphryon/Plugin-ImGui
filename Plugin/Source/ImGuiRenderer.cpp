@@ -23,15 +23,15 @@ namespace Plugin
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-    void ImGuiRenderer::Initialize(Ref<Service::Host> Host)
+    void ImGuiRenderer::Initialize(Ref<Engine::Subsystem::Host> Host)
     {
-        ConstTracker<Content::Service> Content = Host.GetService<Content::Service>();
-        mPipeline = Content->Load<Graphic::Pipeline>("Engine://Pipeline/Basic/Basic2D.effect");
+        ConstRetainer<Content::Service> Content = Host.GetService<Content::Service>();
+        mTechnique = Content->Load<Graphic::Technique>("Engine://Technique/Basic/Basic2D.vfx");
         mGraphics = Host.GetService<Graphic::Service>();
 
         // Set maximum texture size limits for the renderer backend.
         Ref<ImGuiPlatformIO> PlatformIO = ImGui::GetPlatformIO();
-        PlatformIO.Renderer_TextureMaxWidth  = mGraphics->GetDevice().Capabilities.MaxTextureDimension;
+        PlatformIO.Renderer_TextureMaxWidth  = mGraphics->GetDescription().Capabilities.MaxTextureDimension;
         PlatformIO.Renderer_TextureMaxHeight = PlatformIO.Renderer_TextureMaxWidth;
     }
 
@@ -54,8 +54,8 @@ namespace Plugin
 
     void ImGuiRenderer::Submit(ConstRef<ImDrawData> Commands)
     {
-        // Abort drawing if the pipeline has not finished loading or compiling.
-        if (!mPipeline->HasCompleted())
+        // Abort drawing if the technique has not finished loading or compiling.
+        if (!mTechnique->HasCompleted())
         {
             return;
         }
@@ -82,27 +82,25 @@ namespace Plugin
             }
         }
 
-        auto [VtxPtr, VtxStream] = mGraphics->AllocateTransientBuffer<ImDrawVert>(Graphic::Usage::Vertex, Commands.TotalVtxCount);
-        auto [IdxPtr, IdxStream] = mGraphics->AllocateTransientBuffer<ImDrawIdx>(Graphic::Usage::Index, Commands.TotalIdxCount);
+        Graphic::Slice<ImDrawVert> VtxSlice = mGraphics->AllocateVertices<ImDrawVert>(Commands.TotalVtxCount);
+        Graphic::Slice<ImDrawIdx>  IdxSlice = mGraphics->AllocateIndices<ImDrawIdx>(Commands.TotalIdxCount);
 
-        const Matrix4x4 Projection = Matrix4x4::CreateOrthographic(
+        Graphic::Slice<Matrix4x4> UboSlice = mGraphics->AllocateUniforms<Matrix4x4>(1);
+        UboSlice[0] = Matrix4x4::CreateOrthographic(
                 Commands.DisplayPos.x,
                 Commands.DisplayPos.x + Commands.DisplaySize.x,
                 Commands.DisplayPos.y + Commands.DisplaySize.y,
                 Commands.DisplayPos.y,
                 -1.0f,
                 +1.0f);
-        const auto Uniforms = mGraphics->AllocateTransientBuffer(Graphic::Usage::Uniform, ConstSpan(&Projection, 1));
 
         UInt32 VtxOffset = 0;
         UInt32 IdxOffset = 0;
 
         for (const ConstPtr<ImDrawList> CommandList : Commands.CmdLists)
         {
-            std::memcpy(VtxPtr, CommandList->VtxBuffer.Data, CommandList->VtxBuffer.Size * sizeof(ImDrawVert));
-            std::memcpy(IdxPtr, CommandList->IdxBuffer.Data, CommandList->IdxBuffer.Size * sizeof(ImDrawIdx));
-            VtxPtr += CommandList->VtxBuffer.Size;
-            IdxPtr += CommandList->IdxBuffer.Size;
+            VtxSlice.Copy(ConstSpan(CommandList->VtxBuffer.Data, CommandList->VtxBuffer.Size), VtxOffset);
+            IdxSlice.Copy(ConstSpan(CommandList->IdxBuffer.Data, CommandList->IdxBuffer.Size), IdxOffset);
 
             for (ConstRef<ImDrawCmd> Command : CommandList->CmdBuffer)
             {
@@ -116,31 +114,34 @@ namespace Plugin
                     const Graphic::Scissor Scissor(
                         static_cast<UInt16>(Command.ClipRect.x - Commands.DisplayPos.x),
                         static_cast<UInt16>(Command.ClipRect.y - Commands.DisplayPos.y),
-                        static_cast<UInt16>(Command.ClipRect.z - Commands.DisplayPos.x - Command.ClipRect.x),
-                        static_cast<UInt16>(Command.ClipRect.w - Commands.DisplayPos.y - Command.ClipRect.y));
+                        static_cast<UInt16>(Command.ClipRect.z - Command.ClipRect.x),
+                        static_cast<UInt16>(Command.ClipRect.w - Command.ClipRect.y));
                     if (Scissor.Width == 0 || Scissor.Height == 0)
                     {
                         continue;
                     }
 
-                    mEncoder.SetScissor(Scissor);
-                    mEncoder.SetVertices(0, VtxStream);
-                    mEncoder.SetIndices(IdxStream);
-                    mEncoder.SetUniform(0, Uniforms);
-                    mEncoder.SetPipeline(mPipeline->GetID());
-                    mEncoder.SetTexture(0, Command.GetTexID(), Graphic::Sampler());
-                    mEncoder.Draw(Command.ElemCount, Command.VtxOffset + VtxOffset, Command.IdxOffset + IdxOffset);
+                    Ref<Graphic::Command> GfxCommand = mGraphics->AllocateCommand();
+
+                    GfxCommand.Scissor = Scissor;
+                    GfxCommand.Vertices.Append(VtxSlice.GetDescriptor());
+                    GfxCommand.Indices = IdxSlice.GetDescriptor();
+                    GfxCommand.Uniforms[Enum::Cast(Graphic::UniformScope::Global)] = UboSlice.GetDescriptor();
+                    GfxCommand.Pipeline = mTechnique->GetHandle();
+                    GfxCommand.Textures.Append(Command.GetTexID());
+                    GfxCommand.Samplers.Append(Graphic::Sampler());
+                    GfxCommand.Parameters = {
+                        .Count     = Command.ElemCount,
+                        .Base      = static_cast<SInt32>(Command.VtxOffset + VtxOffset),
+                        .Offset    = Command.IdxOffset + IdxOffset,
+                        .Instances = 1
+                    };
                 }
-                mEncoder.ResetBindings();
             }
 
             VtxOffset += CommandList->VtxBuffer.Size;
             IdxOffset += CommandList->IdxBuffer.Size;
         }
-
-        // Submit draw calls
-        mGraphics->Submit(mEncoder.GetSubmissions());
-        mEncoder.Clear();
     }
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -149,15 +150,15 @@ namespace Plugin
     void ImGuiRenderer::CreateTexture(Ptr<ImTextureData> Texture)
     {
         const Graphic::Object ID = mGraphics->CreateTexture(
-            Graphic::TextureType::Texture2D,
+            Graphic::TextureLayout::Texture2D,
             Graphic::TextureFormat::RGBA8UIntNorm,
-            Graphic::Access::Stream,
+            Graphic::Storage::Stream,
             Graphic::Usage::Sample,
             Texture->Width,
             Texture->Height,
             1,
             Graphic::Multisample::X1,
-            Blob::Wrap(Texture->GetPixels(), Texture->Width * Texture->Height * 4));
+            Blob::Borrow<Byte>(static_cast<ConstPtr<Byte>>(Texture->GetPixels()), Texture->Width * Texture->Height * 4));
         Texture->SetTexID(ID);
         Texture->SetStatus(ImTextureStatus_OK);
     }
@@ -192,8 +193,7 @@ namespace Plugin
                 W,
                 H,
                 Texture->GetPitch(),
-                false,
-                Blob::Wrap(Texture->GetPixelsAt(X, Y), Texture->Width * Texture->Height * 4));
+                Blob::Borrow<Byte>(static_cast<ConstPtr<Byte>>(Texture->GetPixelsAt(X, Y)), Texture->Width * Texture->Height * 4));
         }
         Texture->SetStatus(ImTextureStatus_OK);
     }

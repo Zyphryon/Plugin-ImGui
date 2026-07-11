@@ -13,8 +13,7 @@
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 #include <imgui.h>
-#include <Zyphryon.Graphic/Service.hpp>
-#include <Zyphryon.Graphic/Encoder.hpp>
+#include <Zyphryon.Graphic/Technique.hpp>
 
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 // [   CODE   ]
@@ -27,34 +26,34 @@ namespace Plugin
     {
     public:
 
-        /// \brief Initializes the ImGui renderer.
+        /// Initializes the ImGui renderer with the specified host.
         ///
-        /// \param Host Service host providing access to graphics and content subsystems.
-        void Initialize(Ref<Service::Host> Host);
+        /// \param Host The engine subsystem host used to access graphics services.
+        void Initialize(Ref<Engine::Subsystem::Host> Host);
 
-        /// \brief Releases all resources used by the ImGui renderer.
+        /// Disposes of the renderer and releases all associated resources.
         void Dispose();
 
-        /// \brief Submits ImGui draw data for rendering.
+        /// Submits ImGui draw commands for rendering.
         ///
-        /// \param Commands The set of ImGui draw lists to render.
+        /// \param Commands The ImGui draw data containing all commands to be rendered.
         void Submit(ConstRef<ImDrawData> Commands);
 
     private:
 
-        /// \brief Creates a GPU texture for use by ImGui.
+        /// Creates a texture resource for ImGui rendering.
         ///
-        /// \param Texture The ImGui texture data to create.
+        /// \param Texture The texture data to be created.
         void CreateTexture(Ptr<ImTextureData> Texture);
 
-        /// \brief Deletes a GPU texture used by ImGui.
+        /// Deletes a texture resource previously created for ImGui rendering.
         ///
-        /// \param Texture The ImGui texture data to delete.
+        /// \param Texture The texture data to be deleted.
         void DeleteTexture(Ptr<ImTextureData> Texture);
 
-        /// \brief Updates an existing GPU texture used by ImGui.
+        /// Updates an existing texture resource with new data.
         ///
-        /// \param Texture The ImGui texture data to update.
+        /// \param Texture The texture data to be updated.
         void UpdateTexture(Ptr<ImTextureData> Texture);
 
     private:
@@ -62,8 +61,7 @@ namespace Plugin
         // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
         // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-        Tracker<Graphic::Service>  mGraphics;
-        Tracker<Graphic::Pipeline> mPipeline;
-        Graphic::Encoder           mEncoder;
+        Retainer<Graphic::Service>   mGraphics;
+        Retainer<Graphic::Technique> mTechnique;
     };
 }

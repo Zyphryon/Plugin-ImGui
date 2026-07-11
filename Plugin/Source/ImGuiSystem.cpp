@@ -12,6 +12,7 @@
 
 #include "ImGuiSystem.hpp"
 #include <Zyphryon.Input/Service.hpp>
+#include <Zyphryon.Platform/Service.hpp>
 
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 // [   CODE   ]
@@ -22,7 +23,7 @@ namespace Plugin
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-    constexpr auto GetKey(Input::Key Key)
+    static auto GetKey(Input::Key Key)
     {
         switch (Key)
         {
@@ -241,7 +242,7 @@ namespace Plugin
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-    constexpr auto GetKeyModifier(Input::Key Key)
+    static auto GetKeyModifier(Input::Key Key)
     {
         switch (Key)
         {
@@ -265,7 +266,7 @@ namespace Plugin
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-    constexpr auto GetButton(Input::Button Button)
+    static auto GetButton(Input::Button Button)
     {
         switch (Button)
         {
@@ -287,31 +288,36 @@ namespace Plugin
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-    void ImGuiSystem::Initialize(Ref<Service::Host> Host, Ref<Engine::Device> Device)
+    void ImGuiSystem::Initialize(Ref<Engine::Subsystem::Host> Host)
     {
+        ConstRetainer<Platform::Service> Platform = Host.GetService<Platform::Service>();
+
+        // Fetches the window and the monitor the window is at.
+        ConstRef<Platform::Window>        Window  = Platform->GetWindow();
+        const ConstPtr<Platform::Monitor> Monitor = Platform->GetDisplay().GetMonitor(Window.GetX(), Window.GetY());
+        ZY_ASSERT(Monitor, "Failed to get monitor for the window");
+
         // Create the ImGui context and configure basic IO flags (keyboard navigation, docking, renderer features).
         ImGui::CreateContext();
 
         Ref<ImGuiIO> IO = ImGui::GetIO();
         IO.ConfigFlags            |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable;
-        IO.BackendFlags           |= ImGuiBackendFlags_RendererHasVtxOffset | ImGuiBackendFlags_RendererHasTextures;
-        IO.DisplaySize             = ImVec2(Device.GetWidth(), Device.GetHeight());
-        IO.DisplayFramebufferScale = ImVec2(Device.GetScale(), Device.GetScale());
-        IO.BackendPlatformUserData = &Device;
+        IO.BackendFlags           |= ImGuiBackendFlags_RendererHasTextures | ImGuiBackendFlags_RendererHasVtxOffset;
+        IO.DisplaySize             = ImVec2(Window.GetWidth(), Window.GetHeight());
+        IO.DisplayFramebufferScale = ImVec2(Monitor->GetScale(), Monitor->GetScale());
+        IO.BackendPlatformUserData = &* Platform;
 
         // Register custom clipboard handlers to integrate with the engine's device clipboard API.
         Ref<ImGuiPlatformIO> PlatformIO = ImGui::GetPlatformIO();
+        /* TODO: Clipboard functionality
         PlatformIO.Platform_SetClipboardTextFn = [](Ptr<ImGuiContext>, ConstPtr<Char> Text) {
-            static_cast<Ptr<Engine::Device>>(ImGui::GetIO().BackendPlatformUserData)->SetClipboard(Text);
+            static_cast<Ptr<Platform::Window>>(ImGui::GetIO().BackendPlatformUserData)->SetClipboard(Text);
         };
         PlatformIO.Platform_GetClipboardTextFn = [](Ptr<ImGuiContext>) -> ConstPtr<Char> {
             static Str8 Clipboard;
-            Clipboard = static_cast<Ptr<Engine::Device>>(ImGui::GetIO().BackendPlatformUserData)->GetClipboard();
+            Clipboard = static_cast<Ptr<Platform::Window>>(ImGui::GetIO().BackendPlatformUserData)->GetClipboard();
             return Clipboard.data();
-        };
-        PlatformIO.Platform_OpenInShellFn      = [](Ptr<ImGuiContext>, ConstPtr<Char> Url) -> Bool {
-            return SDL_OpenURL(Url);
-        };
+        };*/
 
         // Apply the default dark theme styling.
         ImGui::StyleColorsDark();
@@ -320,7 +326,7 @@ namespace Plugin
         mRenderer.Initialize(Host);
 
         // Register input event callbacks.
-        ConstTracker<Input::Service> Input = Host.GetService<Input::Service>();
+        ConstRetainer<Input::Service> Input = Host.GetService<Input::Service>();
 
         Input->OnKeyDown.AddFunction<&ImGuiSystem::OnKeyDown>();
         Input->OnKeyUp.AddFunction<&ImGuiSystem::OnKeyUp>();
@@ -336,13 +342,13 @@ namespace Plugin
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-    void ImGuiSystem::Teardown(Ref<Service::Host> Host)
+    void ImGuiSystem::Teardown(Ref<Engine::Subsystem::Host> Host)
     {
         // Dispose of the renderer backend.
         mRenderer.Dispose();
 
         // Releases all input event callbacks.
-        ConstTracker<Input::Service> Input = Host.GetService<Input::Service>();
+        ConstRetainer<Input::Service> Input = Host.GetService<Input::Service>();
 
         Input->OnKeyDown.RemoveFunction<&ImGuiSystem::OnKeyDown>();
         Input->OnKeyUp.RemoveFunction<&ImGuiSystem::OnKeyUp>();
@@ -358,10 +364,10 @@ namespace Plugin
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-    void ImGuiSystem::Begin(ConstRef<Time> Time)
+    void ImGuiSystem::Begin(Real64 Time)
     {
         ImGui::NewFrame();
-        ImGui::GetIO().DeltaTime = static_cast<Real32>(Time.GetDelta());
+        ImGui::GetIO().DeltaTime = static_cast<Real32>(Time);
     }
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -380,9 +386,9 @@ namespace Plugin
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-    Bool ImGuiSystem::OnKeyType(ConstStr8 Text)
+    Bool ImGuiSystem::OnKeyType(Text Text)
     {
-        IterateUTF8(Text, [](UInt32 Codepoint)
+        StrIterateUTF8(Text, [](UInt32 Codepoint)
         {
             ImGui::GetIO().AddInputCharacter(Codepoint);
         });

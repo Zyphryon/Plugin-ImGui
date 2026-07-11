@@ -13,8 +13,8 @@
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 #include "ImGuiRenderer.hpp"
-#include <Zyphryon.Engine/Device.hpp>
 #include <Zyphryon.Input/Common.hpp>
+#include <Zyphryon.Platform/Window.hpp>
 
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 // [   CODE   ]
@@ -22,34 +22,33 @@
 
 namespace Plugin
 {
-    /// \brief Provides integration between the engine and ImGui.
+    /// System for managing ImGui integration with the engine.
     class ImGuiSystem final
     {
     public:
 
-        /// \brief Initializes the ImGui system with context, IO, styling, and renderer.
+        /// Initializes the ImGui system with the specified host.
         ///
-        /// \param Host   Service host providing access to engine subsystems.
-        /// \param Device Engine device used for display and clipboard interaction.
-        void Initialize(Ref<Service::Host> Host, Ref<Engine::Device> Device);
+        /// \param Host The engine subsystem host used to access platform and graphics services.
+        void Initialize(Ref<Engine::Subsystem::Host> Host);
 
-        /// \brief Tears down the ImGui system and releases its resources.
+        /// Tears down the ImGui system and releases all resources.
         ///
-        /// \param Host Service host providing access to engine subsystems.
-        void Teardown(Ref<Service::Host> Host);
+        /// \param Host The engine subsystem host used to access platform and graphics services.
+        void Teardown(Ref<Engine::Subsystem::Host> Host);
 
-        /// \brief Starts a new ImGui frame.
+        /// Begins a new ImGui frame.
         ///
-        /// \param Time Frame timing information for synchronization.
-        void Begin(ConstRef<Time> Time);
+        /// \param Time The current frame time in seconds.
+        void Begin(Real64 Time);
 
-        /// \brief Ends the current ImGui frame.
+        /// Ends the current ImGui frame and submits rendering commands.
         void End();
 
     private:
 
         /// \brief Handles text input events.
-        static Bool OnKeyType(ConstStr8 Text);
+        static Bool OnKeyType(Text Text);
 
         /// \brief Handles key release events.
         static Bool OnKeyUp(Input::Key Key);
