@@ -26,7 +26,7 @@ namespace Plugin
     void ImGuiRenderer::Initialize(Ref<Engine::Subsystem::Host> Host)
     {
         ConstRetainer<Content::Service> Content = Host.GetService<Content::Service>();
-        mTechnique = Content->Load<Graphic::Technique>("Engine://Technique/Basic/Basic2D.vfx");
+        mTechnique = Content->Load<Graphic::Technique>("Resources://Technique/UI/ImGui.vfx");
         mGraphics = Host.GetService<Graphic::Service>();
 
         // Set maximum texture size limits for the renderer backend.
@@ -133,7 +133,7 @@ namespace Plugin
                     GfxCommand.Uniforms[Enum::Cast(Graphic::UniformScope::Global)] = UboSlice.GetDescriptor();
                     GfxCommand.Pipeline = mTechnique->GetHandle();
                     GfxCommand.Textures.Append(Command.GetTexID());
-                    GfxCommand.Samplers.Append(Graphic::Sampler()); // TODO: Move to Technique's Static Sampler
+                    GfxCommand.Samplers.Append(Graphic::Sampler());
                     GfxCommand.Parameters = {
                         .Count     = Command.ElemCount,
                         .Base      = static_cast<SInt32>(Command.VtxOffset + VtxOffset),
