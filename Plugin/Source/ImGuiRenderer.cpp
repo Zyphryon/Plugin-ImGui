@@ -102,8 +102,6 @@ namespace Plugin
             VtxSlice.Copy(ConstSpan(CommandList->VtxBuffer.Data, CommandList->VtxBuffer.Size), VtxOffset);
             IdxSlice.Copy(ConstSpan(CommandList->IdxBuffer.Data, CommandList->IdxBuffer.Size), IdxOffset);
 
-            Span<Graphic::Command> GfxCommands = mGraphics->AllocateTransientCommands(CommandList->CmdBuffer.Size);
-
             for (SInt32 Element = 0; Element < CommandList->CmdBuffer.Size; ++Element)
             {
                 ConstRef<ImDrawCmd> Command = CommandList->CmdBuffer[Element];
@@ -125,7 +123,7 @@ namespace Plugin
                         continue;
                     }
 
-                    Ref<Graphic::Command> GfxCommand = GfxCommands[Element];
+                    Ref<Graphic::Command> GfxCommand = mGraphics->AllocateTransientCommands(1).GetFront();
 
                     GfxCommand.Scissor = Scissor;
                     GfxCommand.Vertices.Append(VtxSlice.GetStream());
