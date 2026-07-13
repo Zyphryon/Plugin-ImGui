@@ -28,7 +28,7 @@
             "Albedo"
         ],
         "Uniforms": [
-            { "Slot": "Scene", "Name": "Camera", "Type": "Float4", "Count": 4 }
+            { "Slot": "Global", "Name": "Camera", "Type": "Float4", "Count": 4 }
         ]
     },
     "Program": {

@@ -2,7 +2,7 @@
 // Uniforms
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-layout(std140, binding = 0) uniform cb_Scene
+layout(std140, binding = 0) uniform cb_Global
 {
     mat4 u_Camera;
 };

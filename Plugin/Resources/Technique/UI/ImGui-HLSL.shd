@@ -2,7 +2,7 @@
 // Uniforms
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-cbuffer cb_Scene : register(b0)
+cbuffer cb_Global : register(b0)
 {
     float4x4 u_Camera;
 };
