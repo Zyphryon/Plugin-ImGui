@@ -297,26 +297,19 @@ namespace Plugin
         const ConstPtr<Platform::Monitor> Monitor = Platform->GetDisplay().GetMonitor(Window.GetX(), Window.GetY());
         ZY_ASSERT(Monitor, "Failed to get monitor for the window");
 
+        const Real32 Width  = static_cast<Real32>(Window.GetWidth());
+        const Real32 Height = static_cast<Real32>(Window.GetHeight());
+
         // Create the ImGui context and configure basic IO flags (keyboard navigation, docking, renderer features).
         ImGui::CreateContext();
 
         Ref<ImGuiIO> IO = ImGui::GetIO();
         IO.ConfigFlags            |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable;
-        IO.DisplaySize             = ImVec2(Window.GetWidth(), Window.GetHeight());
+        IO.DisplaySize             = ImVec2(Width, Height);
         IO.DisplayFramebufferScale = ImVec2(Monitor->GetScale(), Monitor->GetScale());
         IO.BackendPlatformUserData = &* Platform;
 
-        // Register custom clipboard handlers to integrate with the engine's device clipboard API.
-        Ref<ImGuiPlatformIO> PlatformIO = ImGui::GetPlatformIO();
-        /* TODO: Clipboard functionality
-        PlatformIO.Platform_SetClipboardTextFn = [](Ptr<ImGuiContext>, ConstPtr<Char> Text) {
-            static_cast<Ptr<Platform::Window>>(ImGui::GetIO().BackendPlatformUserData)->SetClipboard(Text);
-        };
-        PlatformIO.Platform_GetClipboardTextFn = [](Ptr<ImGuiContext>) -> ConstPtr<Char> {
-            static Str8 Clipboard;
-            Clipboard = static_cast<Ptr<Platform::Window>>(ImGui::GetIO().BackendPlatformUserData)->GetClipboard();
-            return Clipboard.data();
-        };*/
+        // TODO: Clipboard functionality
 
         // Apply the default dark theme styling.
         ImGui::StyleColorsDark();
