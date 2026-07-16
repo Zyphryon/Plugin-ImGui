@@ -302,7 +302,6 @@ namespace Plugin
 
         Ref<ImGuiIO> IO = ImGui::GetIO();
         IO.ConfigFlags            |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable;
-        IO.BackendFlags           |= ImGuiBackendFlags_RendererHasTextures | ImGuiBackendFlags_RendererHasVtxOffset;
         IO.DisplaySize             = ImVec2(Window.GetWidth(), Window.GetHeight());
         IO.DisplayFramebufferScale = ImVec2(Monitor->GetScale(), Monitor->GetScale());
         IO.BackendPlatformUserData = &* Platform;
@@ -359,6 +358,9 @@ namespace Plugin
         Input->OnMouseScroll.RemoveFunction<&ImGuiSystem::OnMouseScroll>();
         Input->OnWindowFocus.RemoveFunction<&ImGuiSystem::OnWindowFocus>();
         Input->OnWindowResize.RemoveFunction<&ImGuiSystem::OnWindowResize>();
+
+        // Destroy the context last, since disposing the renderer above still walks the platform texture list.
+        ImGui::DestroyContext();
     }
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -366,8 +368,8 @@ namespace Plugin
 
     void ImGuiSystem::Begin(Real64 Time)
     {
-        ImGui::NewFrame();
         ImGui::GetIO().DeltaTime = static_cast<Real32>(Time);
+        ImGui::NewFrame();
     }
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-

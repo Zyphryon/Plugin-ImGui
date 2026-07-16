@@ -25,13 +25,22 @@ namespace Plugin
 
     void ImGuiRenderer::Initialize(Ref<Engine::Subsystem::Host> Host)
     {
-        ConstRetainer<Content::Service> Content = Host.GetService<Content::Service>();
-        mTechnique = Content->Load<Graphic::Technique>("Resources://Technique/UI/ImGui.vfx");
         mGraphics = Host.GetService<Graphic::Service>();
 
-        // Set maximum texture size limits for the renderer backend.
+        ConstRetainer<Content::Service> Content = Host.GetService<Content::Service>();
+        mTechnique = Content->Load<Graphic::Technique>("Resources://Technique/UI/ImGui.vfx");
+
+        Graphic::Capabilities Capabilities = mGraphics->GetDescription().Capabilities;
+        Capabilities.SupportsBaseVertex = false;
+
+        Ref<ImGuiIO> IO = ImGui::GetIO();
+        IO.BackendRendererName = "Zyphryon";
+
+        IO.BackendFlags = SetBit(IO.BackendFlags, ImGuiBackendFlags_RendererHasTextures);
+        IO.BackendFlags = SetOrClearBit(IO.BackendFlags, ImGuiBackendFlags_RendererHasVtxOffset, Capabilities.SupportsBaseVertex);
+
         Ref<ImGuiPlatformIO> PlatformIO = ImGui::GetPlatformIO();
-        PlatformIO.Renderer_TextureMaxWidth  = mGraphics->GetDescription().Capabilities.MaxTextureDimension;
+        PlatformIO.Renderer_TextureMaxWidth  = static_cast<SInt32>(Capabilities.MaxTextureDimension);
         PlatformIO.Renderer_TextureMaxHeight = PlatformIO.Renderer_TextureMaxWidth;
     }
 
@@ -97,6 +106,8 @@ namespace Plugin
         UInt32 VtxOffset = 0;
         UInt32 IdxOffset = 0;
 
+        const Bool SupportsVertexBaseOffset = HasBit(ImGui::GetIO().BackendFlags, ImGuiBackendFlags_RendererHasVtxOffset);
+
         for (const ConstPtr<ImDrawList> CommandList : Commands.CmdLists)
         {
             VtxSlice.Copy(ConstSpan(CommandList->VtxBuffer.Data, CommandList->VtxBuffer.Size), VtxOffset);
@@ -109,36 +120,48 @@ namespace Plugin
                 if (Command.UserCallback)
                 {
                     Command.UserCallback(CommandList, AddressOf(Command));
+                    continue;
                 }
-                else
+
+                const Real32 MinX = Max(Command.ClipRect.x - Commands.DisplayPos.x, 0.0f);
+                const Real32 MinY = Max(Command.ClipRect.y - Commands.DisplayPos.y, 0.0f);
+                const Real32 MaxX = Min(Command.ClipRect.z - Commands.DisplayPos.x, Commands.DisplaySize.x);
+                const Real32 MaxY = Min(Command.ClipRect.w - Commands.DisplayPos.y, Commands.DisplaySize.y);
+
+                if (MaxX <= MinX || MaxY <= MinY)
                 {
-                    // Apply scissor/clipping rectangle
-                    const Graphic::Scissor Scissor(
-                        static_cast<UInt16>(Command.ClipRect.x - Commands.DisplayPos.x),
-                        static_cast<UInt16>(Command.ClipRect.y - Commands.DisplayPos.y),
-                        static_cast<UInt16>(Command.ClipRect.z - Command.ClipRect.x),
-                        static_cast<UInt16>(Command.ClipRect.w - Command.ClipRect.y));
-                    if (Scissor.Width == 0 || Scissor.Height == 0)
-                    {
-                        continue;
-                    }
-
-                    Ref<Graphic::Command> GfxCommand = mGraphics->AllocateTransientCommands(1).GetFront();
-
-                    GfxCommand.Scissor = Scissor;
-                    GfxCommand.Vertices.Append(VtxSlice.GetStream());
-                    GfxCommand.Indices = IdxSlice.GetStream();
-                    GfxCommand.Uniforms[Enum::Cast(Graphic::UniformScope::Global)] = UboSlice.GetStream();
-                    GfxCommand.Pipeline = mTechnique->GetHandle();
-                    GfxCommand.Textures.Append(static_cast<Graphic::Object>(Command.GetTexID()));
-                    GfxCommand.Samplers.Append(Graphic::Sampler());
-                    GfxCommand.Parameters = {
-                        .Count     = Command.ElemCount,
-                        .Base      = static_cast<SInt32>(Command.VtxOffset + VtxOffset),
-                        .Offset    = Command.IdxOffset + IdxOffset,
-                        .Instances = 1
-                    };
+                    continue;
                 }
+
+                Ref<Graphic::Command> GfxCommand = mGraphics->AllocateTransientCommands(1).GetFront();
+
+                // Devices without base-vertex support ignore vertex base offset.
+                const UInt32    Base     = VtxOffset + Command.VtxOffset;
+                Graphic::Stream Vertices = VtxSlice.GetStream();
+
+                if (!SupportsVertexBaseOffset)
+                {
+                    Vertices.Offset += Base * sizeof(ImDrawVert);
+                }
+
+                GfxCommand.Scissor = Graphic::Scissor(
+                    static_cast<UInt16>(MinX),
+                    static_cast<UInt16>(MinY),
+                    static_cast<UInt16>(MaxX - MinX),
+                    static_cast<UInt16>(MaxY - MinY));
+                GfxCommand.Pipeline = mTechnique->GetHandle();
+                GfxCommand.Vertices.Append(Vertices);
+                GfxCommand.Indices = IdxSlice.GetStream();
+                GfxCommand.Uniforms[Enum::Cast(Graphic::UniformScope::Global)] = UboSlice.GetStream();
+                GfxCommand.Textures.Append(static_cast<Graphic::Object>(Command.GetTexID()));
+                GfxCommand.Samplers.Append(Graphic::Sampler());
+
+                GfxCommand.Parameters = {
+                    .Count     = Command.ElemCount,
+                    .Base      = SupportsVertexBaseOffset ? static_cast<SInt32>(Base) : 0,
+                    .Offset    = Command.IdxOffset + IdxOffset,
+                    .Instances = 1
+                };
             }
 
             VtxOffset += CommandList->VtxBuffer.Size;
@@ -151,17 +174,33 @@ namespace Plugin
 
     void ImGuiRenderer::CreateTexture(Ptr<ImTextureData> Texture)
     {
-        const Graphic::Object ID = mGraphics->CreateTexture(
+        const UInt32           Size = Texture->Height * Texture->Width * Texture->BytesPerPixel;
+        Graphic::TextureFormat Format;
+
+        switch (Texture->Format)
+        {
+        case ImTextureFormat_RGBA32:
+            Format = Graphic::TextureFormat::RGBA8UIntNorm;
+            break;
+        case ImTextureFormat_Alpha8:
+            Format = Graphic::TextureFormat::R8UIntNorm;
+            break;
+        default:
+            ZY_ASSERT(false, "Unsupported ImGui texture format");
+            return;
+        }
+
+        const Graphic::Object Handle = mGraphics->CreateTexture(
             Graphic::TextureLayout::Texture2D,
-            Graphic::TextureFormat::RGBA8UIntNorm,
+            Format,
             Graphic::Storage::Stream,
             Graphic::Usage::Sample,
             Texture->Width,
             Texture->Height,
             1,
             Graphic::Multisample::X1,
-            Blob::Borrow<Byte>(static_cast<ConstPtr<Byte>>(Texture->GetPixels()), Texture->Width * Texture->Height * 4));
-        Texture->SetTexID(ID);
+            Blob::Borrow<Byte>(static_cast<ConstPtr<Byte>>(Texture->GetPixels()), Size));
+        Texture->SetTexID(Handle);
         Texture->SetStatus(ImTextureStatus_OK);
     }
 
@@ -185,8 +224,12 @@ namespace Plugin
 
     void ImGuiRenderer::UpdateTexture(Ptr<ImTextureData> Texture)
     {
+        const UInt32 Pitch = Texture->GetPitch();
+
         for (const auto [X, Y, W, H] : Texture->Updates)
         {
+            const UInt32 Size = (H - 1) * Pitch + W * Texture->BytesPerPixel;
+
             mGraphics->UpdateTexture(
                 Texture->GetTexID(),
                 0,
@@ -194,8 +237,8 @@ namespace Plugin
                 Y,
                 W,
                 H,
-                Texture->GetPitch(),
-                Blob::Borrow<Byte>(static_cast<ConstPtr<Byte>>(Texture->GetPixelsAt(X, Y)), Texture->Width * Texture->Height * 4));
+                Pitch,
+                Blob::Borrow<Byte>(static_cast<ConstPtr<Byte>>(Texture->GetPixelsAt(X, Y)), Size));
         }
         Texture->SetStatus(ImTextureStatus_OK);
     }
