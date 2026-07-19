@@ -30,14 +30,12 @@ namespace Plugin
         ConstRetainer<Content::Service> Content = Host.GetService<Content::Service>();
         mTechnique = Content->Load<Graphic::Technique>("Resources://Technique/UI/ImGui.vfx");
 
-        Graphic::Capabilities Capabilities = mGraphics->GetDescription().Capabilities;
-        Capabilities.SupportsBaseVertex = false;
+        ConstRef<Graphic::Capabilities> Capabilities = mGraphics->GetDescription().Capabilities;
 
         Ref<ImGuiIO> IO = ImGui::GetIO();
         IO.BackendRendererName = "Zyphryon";
-
         IO.BackendFlags = SetBit(IO.BackendFlags, ImGuiBackendFlags_RendererHasTextures);
-        IO.BackendFlags = SetOrClearBit(IO.BackendFlags, ImGuiBackendFlags_RendererHasVtxOffset, Capabilities.SupportsBaseVertex);
+        IO.BackendFlags = SetBit(IO.BackendFlags, ImGuiBackendFlags_RendererHasVtxOffset);
 
         Ref<ImGuiPlatformIO> PlatformIO = ImGui::GetPlatformIO();
         PlatformIO.Renderer_TextureMaxWidth  = static_cast<SInt32>(Capabilities.MaxTextureDimension);
@@ -106,7 +104,7 @@ namespace Plugin
         UInt32 VtxOffset = 0;
         UInt32 IdxOffset = 0;
 
-        const Bool SupportsVertexBaseOffset = HasBit(ImGui::GetIO().BackendFlags, ImGuiBackendFlags_RendererHasVtxOffset);
+        const Bool SupportsVertexBaseOffset = mGraphics->GetDescription().Capabilities.SupportsBaseVertex;
 
         for (const ConstPtr<ImDrawList> CommandList : Commands.CmdLists)
         {
