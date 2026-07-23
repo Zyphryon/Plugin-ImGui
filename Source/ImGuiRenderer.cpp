@@ -28,7 +28,7 @@ namespace Plugin
         mGraphics = Host.GetService<Graphic::Service>();
 
         ConstRetainer<Content::Service> Content = Host.GetService<Content::Service>();
-        mTechnique = Content->Load<Graphic::Technique>("Resources://Technique/UI/ImGui.vfx");
+        mTechnique = Content->Load<Graphic::Technique>("Embedded://Technique/UI/ImGui.vfx");
 
         ConstRef<Graphic::Capabilities> Capabilities = mGraphics->GetDescription().Capabilities;
 
